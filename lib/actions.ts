@@ -103,6 +103,32 @@ export async function addProductAdjustment(payload: {
   return { error: null };
 }
 
+export async function updateProductAdjustment(payload: {
+  id: string;
+  quantity: number;
+  reason: string;
+}): Promise<{ error: string | null }> {
+  await requireAdmin();
+
+  if (!payload.reason.trim()) return { error: "Reden is verplicht." };
+  if (payload.quantity === 0) return { error: "Aantal mag niet 0 zijn." };
+
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("product_adjustments")
+    .update({ quantity: payload.quantity, reason: payload.reason.trim() })
+    .eq("id", payload.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/beheer");
+  revalidatePath("/planning");
+  revalidatePath("/");
+
+  return { error: null };
+}
+
 export async function deleteProductAdjustment(
   adjustmentId: string
 ): Promise<{ error: string | null }> {

@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   updateProductInventory,
   addProductAdjustment,
+  updateProductAdjustment,
   deleteProductAdjustment,
 } from "@/lib/actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -140,21 +141,56 @@ function AdjustmentRow({
   adjustment: ProductAvailability["adjustments"][number];
 }) {
   const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+
+  const isDeduction = adjustment.quantity < 0;
+  const [editType, setEditType] = useState<"deduction" | "addition">(
+    isDeduction ? "deduction" : "addition"
+  );
+  const [editQty, setEditQty] = useState(
+    Math.abs(adjustment.quantity).toString()
+  );
+  const [editReason, setEditReason] = useState(adjustment.reason);
 
   async function handleDelete() {
     if (!confirm("Weet je zeker dat je deze mutatie wilt verwijderen?")) return;
-    setLoading(true);
+    setDeleteLoading(true);
     const { error } = await deleteProductAdjustment(adjustment.id);
     if (error) {
       toast({ title: "Fout", description: error, variant: "destructive" });
     } else {
       toast({ title: "Mutatie verwijderd" });
     }
-    setLoading(false);
+    setDeleteLoading(false);
   }
 
-  const isDeduction = adjustment.quantity < 0;
+  async function handleEditSave() {
+    const num = parseInt(editQty, 10);
+    if (isNaN(num) || num <= 0) {
+      toast({ title: "Ongeldig aantal", variant: "destructive" });
+      return;
+    }
+    if (!editReason.trim()) {
+      toast({ title: "Reden is verplicht", variant: "destructive" });
+      return;
+    }
+    setEditLoading(true);
+    const finalQty = editType === "deduction" ? -num : num;
+    const { error } = await updateProductAdjustment({
+      id: adjustment.id,
+      quantity: finalQty,
+      reason: editReason,
+    });
+    if (error) {
+      toast({ title: "Fout", description: error, variant: "destructive" });
+    } else {
+      toast({ title: "Mutatie bijgewerkt" });
+      setEditOpen(false);
+    }
+    setEditLoading(false);
+  }
 
   return (
     <div className="flex items-center justify-between px-3 py-2">
@@ -183,14 +219,103 @@ function AdjustmentRow({
           {adjustment.quantity > 0 ? "+" : ""}
           {adjustment.quantity}
         </span>
+
+        {/* Bewerken */}
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-gray-400 hover:text-violet-600"
+            >
+              <Pencil className="h-3 w-3" />
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Mutatie bewerken</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              {/* Type */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditType("deduction")}
+                  className={`flex items-center justify-center gap-2 rounded-lg border py-2.5 text-sm font-medium transition-colors ${
+                    editType === "deduction"
+                      ? "border-red-300 bg-red-50 text-red-700"
+                      : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  <TrendingDown className="h-4 w-4" />
+                  In mindering
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditType("addition")}
+                  className={`flex items-center justify-center gap-2 rounded-lg border py-2.5 text-sm font-medium transition-colors ${
+                    editType === "addition"
+                      ? "border-green-300 bg-green-50 text-green-700"
+                      : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  <TrendingUp className="h-4 w-4" />
+                  Toevoeging
+                </button>
+              </div>
+
+              {/* Aantal */}
+              <div className="space-y-2">
+                <Label htmlFor="edit-adj-qty">Aantal</Label>
+                <Input
+                  id="edit-adj-qty"
+                  type="number"
+                  min={1}
+                  value={editQty}
+                  onChange={(e) => setEditQty(e.target.value)}
+                />
+              </div>
+
+              {/* Reden */}
+              <div className="space-y-2">
+                <Label htmlFor="edit-adj-reason">
+                  Reden <span className="text-red-500">*</span>
+                </Label>
+                <Textarea
+                  id="edit-adj-reason"
+                  rows={3}
+                  value={editReason}
+                  onChange={(e) => setEditReason(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setEditOpen(false)}
+                disabled={editLoading}
+              >
+                Annuleren
+              </Button>
+              <Button onClick={handleEditSave} disabled={editLoading}>
+                {editLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                Opslaan
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Verwijderen */}
         <Button
           variant="ghost"
           size="icon"
           className="h-7 w-7 text-gray-400 hover:text-red-600"
           onClick={handleDelete}
-          disabled={loading}
+          disabled={deleteLoading}
         >
-          {loading ? (
+          {deleteLoading ? (
             <Loader2 className="h-3 w-3 animate-spin" />
           ) : (
             <Trash2 className="h-3 w-3" />
