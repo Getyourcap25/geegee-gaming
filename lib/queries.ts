@@ -216,10 +216,11 @@ export async function getProductAvailability(
         : productRows;
 
     const reserved = overlapping.reduce((sum, r) => sum + r.quantity, 0);
-    const available = product.inventory_total - reserved - manualDeductions;
+    // manualDeductions is negatief bij aftrek, positief bij toevoeging
+    const available = product.inventory_total - reserved + manualDeductions;
 
     // Conflict: overlappende paren die samen boven effectieve voorraad komen
-    const effectiveInventory = product.inventory_total - manualDeductions;
+    const effectiveInventory = product.inventory_total + manualDeductions;
     let hasConflict = false;
     for (let i = 0; i < productRows.length; i++) {
       for (let j = i + 1; j < productRows.length; j++) {
