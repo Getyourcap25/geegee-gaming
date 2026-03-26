@@ -8,6 +8,7 @@ interface AvailabilityCardProps {
 
 export function AvailabilityCard({ item }: AvailabilityCardProps) {
   const { product, totalInventory, reserved, available, hasConflict } = item;
+  // item.manualDeductions gebruikt in de grid hieronder via `item`
   const pct = totalInventory > 0 ? (reserved / totalInventory) * 100 : 0;
 
   return (
@@ -34,7 +35,7 @@ export function AvailabilityCard({ item }: AvailabilityCardProps) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="grid grid-cols-3 gap-2 text-center text-sm">
+        <div className="grid grid-cols-4 gap-2 text-center text-sm">
           <div className="rounded-lg bg-gray-50 p-2">
             <p className="text-lg font-bold text-gray-900">{totalInventory}</p>
             <p className="text-xs text-gray-500">Totaal</p>
@@ -42,6 +43,10 @@ export function AvailabilityCard({ item }: AvailabilityCardProps) {
           <div className="rounded-lg bg-orange-50 p-2">
             <p className="text-lg font-bold text-orange-700">{reserved}</p>
             <p className="text-xs text-gray-500">Gereserveerd</p>
+          </div>
+          <div className="rounded-lg bg-red-50 p-2">
+            <p className="text-lg font-bold text-red-700">{item.manualDeductions}</p>
+            <p className="text-xs text-gray-500">Handmatig</p>
           </div>
           <div className={`rounded-lg p-2 ${available > 0 ? "bg-green-50" : "bg-red-50"}`}>
             <p className={`text-lg font-bold ${available > 0 ? "text-green-700" : "text-red-700"}`}>

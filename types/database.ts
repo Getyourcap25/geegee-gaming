@@ -93,6 +93,36 @@ export interface Database {
         };
         Relationships: [];
       };
+      product_adjustments: {
+        Row: {
+          id: string;
+          product_id: string;
+          quantity: number;
+          reason: string;
+          created_by_user_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          product_id: string;
+          quantity: number;
+          reason: string;
+          created_by_user_id: string;
+          created_at?: string;
+        };
+        Update: {
+          reason?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_adjustments_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       requests: {
         Row: {
           id: string;

@@ -41,3 +41,85 @@ export async function updateRequest(
 
   return { error: null };
 }
+
+// ============================================================
+// PRODUCT BEHEER
+// ============================================================
+
+export async function updateProductInventory(
+  productId: string,
+  inventoryTotal: number
+): Promise<{ error: string | null }> {
+  await requireAdmin();
+
+  if (inventoryTotal < 0)
+    return { error: "Voorraad kan niet negatief zijn." };
+
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("products")
+    .update({ inventory_total: inventoryTotal })
+    .eq("id", productId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/beheer");
+  revalidatePath("/planning");
+  revalidatePath("/");
+
+  return { error: null };
+}
+
+export async function addProductAdjustment(payload: {
+  productId: string;
+  quantity: number;   // negatief voor aftrek, positief voor toevoeging
+  reason: string;
+  userId: string;
+}): Promise<{ error: string | null }> {
+  await requireAdmin();
+
+  if (!payload.reason.trim())
+    return { error: "Reden is verplicht." };
+
+  if (payload.quantity === 0)
+    return { error: "Aantal mag niet 0 zijn." };
+
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("product_adjustments").insert({
+    product_id: payload.productId,
+    quantity: payload.quantity,
+    reason: payload.reason.trim(),
+    created_by_user_id: payload.userId,
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/beheer");
+  revalidatePath("/planning");
+  revalidatePath("/");
+
+  return { error: null };
+}
+
+export async function deleteProductAdjustment(
+  adjustmentId: string
+): Promise<{ error: string | null }> {
+  await requireAdmin();
+
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("product_adjustments")
+    .delete()
+    .eq("id", adjustmentId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/beheer");
+  revalidatePath("/planning");
+  revalidatePath("/");
+
+  return { error: null };
+}

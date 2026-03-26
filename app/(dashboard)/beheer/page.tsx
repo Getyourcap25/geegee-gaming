@@ -1,9 +1,16 @@
 import { Suspense } from "react";
 import { requireAdmin } from "@/lib/auth";
-import { getRequests, getProducts, getDistricts } from "@/lib/queries";
+import {
+  getRequests,
+  getProducts,
+  getDistricts,
+  getProductAvailability,
+} from "@/lib/queries";
 import { Header } from "@/components/layout/header";
 import { AdminTable } from "@/components/beheer/admin-table";
+import { ProductManagement } from "@/components/beheer/product-management";
 import { RequestsFilters } from "@/components/requests/requests-filters";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { RequestStatus } from "@/types/database";
 
 interface SearchParams {
@@ -11,6 +18,7 @@ interface SearchParams {
   status?: string;
   district?: string;
   product?: string;
+  tab?: string;
 }
 
 export default async function BeheerPage({
@@ -18,7 +26,7 @@ export default async function BeheerPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  await requireAdmin();
+  const { profile } = await requireAdmin();
   const params = await searchParams;
 
   const validStatuses: RequestStatus[] = [
@@ -35,7 +43,7 @@ export default async function BeheerPage({
       ? (rawStatus as RequestStatus)
       : "all";
 
-  const [requests, products, districts] = await Promise.all([
+  const [requests, products, districts, availability] = await Promise.all([
     getRequests({
       search: params.search,
       status: status as RequestStatus | "all",
@@ -44,19 +52,42 @@ export default async function BeheerPage({
     }),
     getProducts(),
     getDistricts(),
+    getProductAvailability(),
   ]);
 
   return (
     <div>
       <Header
         title="Beheer"
-        description={`${requests.length} aanvra${requests.length === 1 ? "ag" : "gen"} — status, data en interne notities aanpassen`}
+        description="Aanvragen en producten beheren"
       />
-      <div className="space-y-4 p-8">
-        <Suspense>
-          <RequestsFilters products={products} districts={districts} />
-        </Suspense>
-        <AdminTable requests={requests} />
+      <div className="p-8">
+        <Tabs defaultValue={params.tab ?? "aanvragen"}>
+          <TabsList className="mb-6">
+            <TabsTrigger value="aanvragen">
+              Aanvragen ({requests.length})
+            </TabsTrigger>
+            <TabsTrigger value="producten">
+              Producten &amp; voorraad
+            </TabsTrigger>
+          </TabsList>
+
+          {/* ── Aanvragen tab ── */}
+          <TabsContent value="aanvragen" className="space-y-4">
+            <Suspense>
+              <RequestsFilters products={products} districts={districts} />
+            </Suspense>
+            <AdminTable requests={requests} />
+          </TabsContent>
+
+          {/* ── Producten tab ── */}
+          <TabsContent value="producten">
+            <ProductManagement
+              availability={availability}
+              userId={profile.id}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

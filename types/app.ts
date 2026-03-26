@@ -1,6 +1,8 @@
 import type { Database, RequestStatus } from "./database";
 
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+export type ProductAdjustment =
+  Database["public"]["Tables"]["product_adjustments"]["Row"];
 export type Product = Database["public"]["Tables"]["products"]["Row"];
 export type District = Database["public"]["Tables"]["districts"]["Row"];
 export type Request = Database["public"]["Tables"]["requests"]["Row"];
@@ -30,8 +32,14 @@ export interface ProductAvailability {
   product: Product;
   totalInventory: number;
   reserved: number;
+  manualDeductions: number;
   available: number;
   hasConflict: boolean;
+  adjustments: ProductAdjustmentWithCreator[];
+}
+
+export interface ProductAdjustmentWithCreator extends ProductAdjustment {
+  creator?: Pick<Profile, "id" | "full_name" | "email">;
 }
 
 // Filter state voor aanvragentabel

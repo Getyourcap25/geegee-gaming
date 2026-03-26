@@ -183,22 +183,43 @@ export async function getProductAvailability(
   if (error)
     throw new Error(`Beschikbaarheid ophalen mislukt: ${error.message}`);
 
+  // Handmatige aftrekposten
+  const { data: adjustmentsData, error: adjError } = await supabase
+    .from("product_adjustments")
+    .select("*, creator:profiles!created_by_user_id(id, full_name, email)")
+    .order("created_at", { ascending: false });
+
+  if (adjError)
+    throw new Error(`Aftrekposten ophalen mislukt: ${adjError.message}`);
+
   const rows = activeRequests ?? [];
+  const allAdjustments = (adjustmentsData ?? []) as unknown as import("@/types/app").ProductAdjustmentWithCreator[];
 
   return products.map((product) => {
     const productRows = rows.filter((r) => r.product_id === product.id);
+    const productAdjustments = allAdjustments.filter(
+      (a) => a.product_id === product.id
+    );
+
+    // Totale handmatige aftrek (som van quantity, negatief = aftrek)
+    const manualDeductions = productAdjustments.reduce(
+      (sum, a) => sum + a.quantity,
+      0
+    );
 
     // Filter op overlappende periode als checkStart/checkEnd opgegeven
-    const overlapping = checkStart && checkEnd
-      ? productRows.filter((r) =>
-          datesOverlap(r.preferred_date, r.end_date, checkStart, checkEnd)
-        )
-      : productRows;
+    const overlapping =
+      checkStart && checkEnd
+        ? productRows.filter((r) =>
+            datesOverlap(r.preferred_date, r.end_date, checkStart, checkEnd)
+          )
+        : productRows;
 
     const reserved = overlapping.reduce((sum, r) => sum + r.quantity, 0);
-    const available = product.inventory_total - reserved;
+    const available = product.inventory_total - reserved - manualDeductions;
 
-    // Conflict: overlappende paren die samen boven voorraad komen
+    // Conflict: overlappende paren die samen boven effectieve voorraad komen
+    const effectiveInventory = product.inventory_total - manualDeductions;
     let hasConflict = false;
     for (let i = 0; i < productRows.length; i++) {
       for (let j = i + 1; j < productRows.length; j++) {
@@ -212,7 +233,7 @@ export async function getProductAvailability(
             b.end_date
           )
         ) {
-          if (a.quantity + b.quantity > product.inventory_total) {
+          if (a.quantity + b.quantity > effectiveInventory) {
             hasConflict = true;
           }
         }
@@ -223,8 +244,10 @@ export async function getProductAvailability(
       product,
       totalInventory: product.inventory_total,
       reserved,
+      manualDeductions,
       available,
       hasConflict,
+      adjustments: productAdjustments,
     };
   });
 }
