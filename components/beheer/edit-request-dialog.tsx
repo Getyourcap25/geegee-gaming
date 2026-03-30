@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { updateRequest } from "@/lib/actions";
 import {
   Dialog,
   DialogContent,
@@ -41,7 +41,6 @@ const STATUSES: RequestStatus[] = [
 ];
 
 export function EditRequestDialog({ request }: EditRequestDialogProps) {
-  const supabase = createClient();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -75,19 +74,24 @@ export function EditRequestDialog({ request }: EditRequestDialogProps) {
       return;
     }
 
-    const { error } = await supabase
-      .from("requests")
-      .update({
-        status,
-        quantity: qty,
-        preferred_date: preferredDate,
-        end_date: endDate,
-        internal_notes: internalNotes.trim() || null,
-      })
-      .eq("id", request.id);
+    const { error } = await updateRequest({
+      id: request.id,
+      status,
+      quantity: qty,
+      preferred_date: preferredDate,
+      end_date: endDate,
+      internal_notes: internalNotes.trim() || null,
+      previousStatus: request.status,
+      requestedByEmail: request.requested_by_email,
+      requestedByName: request.requested_by_name,
+      productName: request.product.name,
+      districtName: request.district.name,
+      notes: request.notes,
+      referenceCode: request.reference_code,
+    });
 
     if (error) {
-      toast({ title: "Fout bij opslaan", description: error.message, variant: "destructive" });
+      toast({ title: "Fout bij opslaan", description: error, variant: "destructive" });
       setLoading(false);
       return;
     }

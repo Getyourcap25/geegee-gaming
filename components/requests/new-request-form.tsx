@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { submitRequest } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,7 +37,6 @@ export function NewRequestForm({
   userOrg,
 }: NewRequestFormProps) {
   const router = useRouter();
-  const supabase = createClient();
   const { toast } = useToast();
 
   const [loading, setLoading] = useState(false);
@@ -80,7 +79,10 @@ export function NewRequestForm({
       return;
     }
 
-    const { error } = await supabase.from("requests").insert({
+    const selectedProduct = products.find((p) => p.id === form.product_id);
+    const selectedDistrict = districts.find((d) => d.id === form.district_id);
+
+    const { error, referenceCode } = await submitRequest({
       product_id: form.product_id,
       quantity: qty,
       district_id: form.district_id,
@@ -92,20 +94,24 @@ export function NewRequestForm({
       preferred_date: form.preferred_date,
       end_date: form.end_date,
       notes: form.notes.trim() || null,
-      created_by_user_id: userId,
+      productName: selectedProduct?.name ?? "",
+      districtName: selectedDistrict?.name ?? "",
     });
 
     if (error) {
       toast({
         title: "Fout bij opslaan",
-        description: error.message,
+        description: error,
         variant: "destructive",
       });
       setLoading(false);
       return;
     }
 
-    toast({ title: "Aanvraag ingediend", description: "Je aanvraag is ontvangen." });
+    toast({
+      title: "Aanvraag ingediend",
+      description: `${referenceCode} — een bevestiging is verstuurd naar ${form.requested_by_email}.`,
+    });
     router.push("/aanvragen");
     router.refresh();
   }
